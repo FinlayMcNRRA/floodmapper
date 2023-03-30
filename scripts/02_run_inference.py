@@ -1,6 +1,7 @@
 import os
 import sys
 os.environ['USE_PYGEOS'] = '0'
+from dotenv import load_dotenv
 
 import torch
 from ml4floods.data import create_gt
@@ -15,6 +16,7 @@ from ml4floods.models.utils.configuration import AttrDict
 from ml4floods.data.worldfloods import dataset
 from ml4floods.models import postprocess
 import rasterio
+import rasterio.session
 from ml4floods.data import save_cog, utils
 import numpy as np
 from datetime import datetime
@@ -34,7 +36,6 @@ from db_utils import DB
 
 # DEBUG
 warnings.filterwarnings("ignore")
-
 
 def do_update_inference(db_conn, image_id, patch_name, satellite, date,
                         model_id, mode, status=0, data_path=None,
@@ -84,7 +85,7 @@ def load_inference_function(
     model_path.rstrip("/")
     experiment_name = os.path.basename(model_path)
     model_folder = os.path.dirname(model_path)
-    config_fp = os.path.join(model_path, "config.json")
+    config_fp = os.path.join(model_path, "config.json").replace("\\", "/")
     print(f"[INFO] Loading model configuraton from here:\n\t{config_fp}")
     config = get_default_config(config_fp)
     # The max_tile_size param controls the max size of patches that are fed to
@@ -308,7 +309,7 @@ def main(path_aois: str,
     rel_model_path = "0_DEV/2_Mart/2_MLModelMart"
     model_path = os.path.join(bucket_uri,
                               rel_model_path,
-                              experiment_name)
+                              experiment_name).replace("\\", "/")
     bucket_name = bucket_uri.replace("gs://","").split("/")[0]
     print(f"[INFO] Full model path:\n\t{model_path}")
 
@@ -324,6 +325,10 @@ def main(path_aois: str,
 
     # Connect to the FloodMapper DB
     db_conn = DB(dotenv_path=path_env_file)
+    
+    # Create rasterio GSSession
+    key_file_path = os.environ['GOOGLE_APPLICATION_CREDENTIALS']
+    rasterio.session.GSSession(google_application_credentials= key_file_path)
 
     # Read the gridded AoIs from a file (on GCP or locally).
     if path_aois:
@@ -405,7 +410,10 @@ def main(path_aois: str,
     files_with_errors = []
     print(f"[INFO] {len(images_predict)} images queued for inference. ")
     for total, filename in tq(enumerate(images_predict), total=num_images):
-
+        tq.write(f"This was the filename {filename}")
+        filename = filename.replace("t\\", "t/")
+        filename = filename.replace("\\", "/")
+        tq.write(f"This is the filename {filename}")
         # Compute folder name to save the predictions if not provided
         output_folder_grid = os.path.dirname(os.path.dirname(filename))
         output_folder_model = os.path.join(output_folder_grid,
@@ -418,14 +426,14 @@ def main(path_aois: str,
                                             experiment_name + "_cont",
                                             collection_name).replace("\\", "/")
         filename_save = os.path.join(output_folder_model,
-                                     os.path.basename(filename))
+                                     os.path.basename(filename)).replace("\\", "/")
         filename_save_cont = os.path.join(output_folder_model_cont,
-                                          os.path.basename(filename))
+                                          os.path.basename(filename)).replace("\\", "/")
         filename_save_vect = os.path.join(output_folder_model_vec,
-                f"{os.path.splitext(os.path.basename(filename))[0]}.geojson")
+                f"{os.path.splitext(os.path.basename(filename))[0]}.geojson").replace("\\", "/")
         path_split = os.path.splitext(filename_save)[0].split('/')
         patch_name, model_id, satellite, date = path_split[-4:]
-        image_id = "_".join([patch_name, satellite, date])
+        image_id = "_".join([patch_name, satellite, date]).replace("\\", "/")
 
         # Print a title
         tq.write("\n" + "-"*80 + "\n")
@@ -439,7 +447,7 @@ def main(path_aois: str,
             tq.write(f"\tResult already exists in database ... skipping.")
             tq.write(f"\tUse '--overwrite' flag to force overwrite.")
             continue
-
+        
         try:
             # Load the image, WCS transform and CRS from GCP
             tq.write("\tLoading image from GCP ... ", end="")
@@ -448,6 +456,7 @@ def main(path_aois: str,
                 collection_name=collection_name, as_string=True)
             torch_inputs, transform = \
                 dataset.load_input(filename, window=None, channels=channels)
+            
             with rasterio.open(filename) as src:
                 crs = src.crs
             tq.write("OK")
@@ -581,7 +590,7 @@ if __name__ == "__main__":
         default="WF2_unet_rbgiswirs",
         help="Name of the folder containing model.pt and config.json files.")
     ap.add_argument("--bucket-uri",
-        default="gs://floodmapper-demo",
+        default="gs://floodmapper-bucket",
         help="Root URI of the GCP bucket \n[%(default)s].")
     ap.add_argument("--path-env-file", default="../.env",
         help="Path to the hidden credentials file [%(default)s].")

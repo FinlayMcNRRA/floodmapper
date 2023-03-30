@@ -1,4 +1,6 @@
 name: floodmapper
+# Removed torch from dependencies 
+# Installed it via the conda command: conda install pytorch torchvision pytorch-cuda=11.7 -c pytorch -c nvidia
 channels:
   - pytorch-nightly
   - conda-forge
@@ -6,9 +8,6 @@ dependencies:
     - python=3.9
     - pip>=19.0
     - numpy
-    - pytorch
-    - pytorch-lightning
-    - torchvision 
     - jupyter
     - jupyterlab
     - scikit-learn

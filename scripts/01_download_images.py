@@ -183,7 +183,7 @@ def main(path_aois: str,
 
     # Parse the bucket URI and name
     rel_grid_path = "0_DEV/1_Staging/GRID"
-    bucket_grid_path = os.path.join(bucket_uri, rel_grid_path)
+    bucket_grid_path = os.path.join(bucket_uri, rel_grid_path).replace("\\", "/")
     bucket_name = bucket_uri.replace("gs://","").split("/")[0]
     print(f"[INFO] Will download files to:\n\t{bucket_grid_path}")
 
@@ -367,7 +367,7 @@ def main(path_aois: str,
             fileNamePrefix = os.path.join(rel_grid_path,
                                           name,
                                           constellation,
-                                          solar_day)
+                                          solar_day).replace("\\", "/")
             tq.write(f"\t{fileNamePrefix}")
             desc = f"{name}_{constellation}_{solar_day}"
 
@@ -531,7 +531,7 @@ def main(path_aois: str,
 
             data_path = os.path.join(bucket_uri, rel_grid_path,
                                      name, constellation,
-                                     f"{solar_day}.tif")
+                                     f"{solar_day}.tif").replace("\\", "/")
 
             tq.write("\tUpdating database with image details.")
             do_update_download(db_conn, desc, name, constellation,
@@ -557,7 +557,7 @@ def main(path_aois: str,
         print(f"Processing Patch: '{aoi_geom.patch_name}'\n")
 
         try:
-            image_id = (f"{aoi_geom.patch_name}_PERMANENTWATERJRC")
+            image_id = (f"{aoi_geom.patch_name}_FfWATERJRC")
             print("\tQuerying database for existing image.")
             query = (f"SELECT image_id, status, valids, "
                      f"cloud_probability, valids "
@@ -580,7 +580,7 @@ def main(path_aois: str,
             crs = ee_download.convert_wgs_to_utm(lon=lon, lat=lat)
             folder_dest_permament = os.path.join(bucket_grid_path,
                                                  aoi_geom.patch_name,
-                                                 "PERMANENTWATERJRC")
+                                                 "PERMANENTWATERJRC").replace("\\", "/")
 
             # Command the latest permanent water layer be downloaded.
             # Method returns a GEE task if successful, or None otherwise.
